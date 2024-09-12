@@ -9,7 +9,16 @@ import (
 	"time"
 )
 
-func makeRequest(url, method string, headers []string, data []byte, timeout time.Duration) int {
+type (
+	Requester interface {
+		MakeRequest(url, method string, headers []string, data []byte, timeout time.Duration) int
+	}
+	defaultRequester struct{}
+)
+
+var DefaultRequester Requester = &defaultRequester{}
+
+func (_ *defaultRequester) MakeRequest(url, method string, headers []string, data []byte, timeout time.Duration) int {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 

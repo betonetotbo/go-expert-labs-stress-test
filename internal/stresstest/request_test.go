@@ -14,7 +14,7 @@ func Test_Request_OK(t *testing.T) {
 	}))
 	defer svc.Close()
 
-	code := makeRequest(svc.URL, http.MethodGet, nil, nil, time.Second*5)
+	code := DefaultRequester.MakeRequest(svc.URL, http.MethodGet, nil, nil, time.Second*5)
 
 	assert.Equal(t, http.StatusOK, code)
 }
@@ -25,7 +25,7 @@ func Test_Request_BadRequest(t *testing.T) {
 	}))
 	defer svc.Close()
 
-	code := makeRequest(svc.URL, http.MethodGet, nil, nil, time.Second*5)
+	code := DefaultRequester.MakeRequest(svc.URL, http.MethodGet, nil, nil, time.Second*5)
 
 	assert.Equal(t, http.StatusBadRequest, code)
 }
@@ -35,7 +35,7 @@ func Test_Request_Fail(t *testing.T) {
 	}))
 	svc.Close()
 
-	code := makeRequest(svc.URL, http.MethodGet, nil, nil, time.Second*5)
+	code := DefaultRequester.MakeRequest(svc.URL, http.MethodGet, nil, nil, time.Second*5)
 
 	assert.Equal(t, 0, code)
 }
@@ -48,7 +48,7 @@ func Test_Request_Timeout(t *testing.T) {
 	defer svc.Close()
 
 	start := time.Now()
-	code := makeRequest(svc.URL, http.MethodGet, nil, nil, time.Millisecond*500)
+	code := DefaultRequester.MakeRequest(svc.URL, http.MethodGet, nil, nil, time.Millisecond*500)
 	elapsed := time.Since(start)
 
 	assert.Equal(t, 0, code)

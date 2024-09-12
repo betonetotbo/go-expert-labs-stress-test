@@ -1,29 +1,54 @@
 package stresstest
 
 import (
+	"encoding/base64"
+	"fmt"
 	"log"
-	"math"
 	"time"
 )
 
-func StressTest(url, method string, headers []string, body []byte, timeout time.Duration, requests, concurrency int) *Report {
-	requestsPerBatch := int(math.Floor(float64(requests) / float64(concurrency)))
+type (
+	StressTest struct {
+		Url         string
+		Method      string
+		Headers     []string
+		BodyEncoded string
+		Timeout     time.Duration
+		Requests    int
+		Concurrency int
+	}
+)
+
+func (st *StressTest) Run() (*Report, error) {
+	var data []byte
+	if st.BodyEncoded != "" {
+		var err error
+		data, err = base64.StdEncoding.DecodeString(st.BodyEncoded)
+		if err != nil {
+			return nil, fmt.Errorf("invalid body base64: %w", err)
+		}
+	}
+
+	executionsPerFork := st.Requests / st.Concurrency
+	remainingRequests := st.Requests % st.Concurrency
 
 	start := time.Now()
 	reports := make(chan Report)
-	for i := 0; i < concurrency; i++ {
-		if i == concurrency-1 && requestsPerBatch*concurrency < requests {
-			requestsPerBatch++
+	for i := 0; i < st.Concurrency; i++ {
+		count := executionsPerFork
+		if remainingRequests > 0 {
+			remainingRequests--
+			count++
 		}
 
-		log.Printf("Requests per batch: %d, concurrency: %d", requestsPerBatch, concurrency)
+		log.Printf("Requests per batch: %d, Concurrency: %d", count, st.Concurrency)
 
 		go func(count int) {
 			r := Report{
 				FailedRequests: make(map[int]int),
 			}
 			for i := 0; i < count; i++ {
-				code := makeRequest(url, method, headers, body, timeout)
+				code := DefaultRequester.MakeRequest(st.Url, st.Method, st.Headers, data, st.Timeout)
 				if code >= 200 && code < 300 {
 					r.SuccessfulRequests++
 				} else {
@@ -31,13 +56,14 @@ func StressTest(url, method string, headers []string, body []byte, timeout time.
 				}
 			}
 			reports <- r
-		}(requestsPerBatch)
+		}(count)
 	}
 
+	// merge all results
 	report := Report{
 		FailedRequests: make(map[int]int),
 	}
-	for i := 0; i < concurrency; i++ {
+	for i := 0; i < st.Concurrency; i++ {
 		r := <-reports
 		report.SuccessfulRequests += r.SuccessfulRequests
 		report.TotalRequests += r.SuccessfulRequests
@@ -50,5 +76,5 @@ func StressTest(url, method string, headers []string, body []byte, timeout time.
 	}
 
 	report.TimeSpent = time.Since(start)
-	return &report
+	return &report, nil
 }
